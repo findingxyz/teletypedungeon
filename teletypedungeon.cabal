@@ -1,0 +1,48 @@
+cabal-version:      2.4
+name:               teletypedungeon
+version:            0.1.0.0
+synopsis:           mediocre dungeon crawling text game
+
+-- A longer description of the package.
+-- description:
+homepage:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+license:            GPL-3.0-or-later
+license-file:       LICENSE
+author:             holeinwall
+maintainer:
+
+-- A copyright notice.
+-- copyright:
+-- category:
+extra-source-files: CHANGELOG.md
+
+common common
+    ghc-options: -Wall
+    default-language: Haskell2010
+
+library
+    import:         common
+    hs-source-dirs: src
+    build-depends:  base               >= 4.16 && < 4.18,
+                    fgl                >= 5.8 && < 5.9,
+                    random             >= 1.2 && < 1.3,
+                    mtl                >= 2.3 && < 2.4
+    exposed-modules:
+      DungeonWorld
+
+
+executable teletypedungeon
+    import:           common
+    main-is:          Main.hs
+
+    -- Modules included in this executable, other than Main.
+    -- other-modules:
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+    build-depends:    base ^>=4.16.4.0,
+                      teletypedungeon
+    hs-source-dirs:   app

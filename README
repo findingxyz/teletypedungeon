@@ -1,0 +1,11 @@
+done:
+    - traversal
+
+todo:
+    - some error handling
+    - error/success messages
+    - somewhat better traversal
+    - fight
+    - loot
+    - random generation
+    - maps
