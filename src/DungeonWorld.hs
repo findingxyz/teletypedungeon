@@ -1,12 +1,19 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module DungeonWorld where
 
 import System.IO
 import Data.Graph.Inductive
 import Control.Monad.State.Strict
+import qualified Dungeon.Dice as D
+import System.Random (StdGen, mkStdGen)
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 
 
 data World = World { player  :: Player
                    , dungeon :: Dungeon
+                   , seed    :: StdGen
                    }
                    deriving Show
 
@@ -28,9 +35,11 @@ data Description = Description { dName        :: Name
 
 data Expression = Number Int
                 | Move   Expression
+                | Roll   T.Text
                 deriving Show
 
 data Value = NumberVal  Int
+           | RollVal    T.Text
            | PlayerVal  Player
            | RoomVal    Room
            | DungeonVal Dungeon
@@ -66,6 +75,9 @@ eval (Move e)   = do
             return $ RoomVal at
         False -> return $ FailVal ("not found: " ++ show n
                                 ++ " in rooms: " ++ show rooms)
+eval (Roll e)   = do
+    world <- get
+    return $ NumberVal $ D.roll e (seed world)
 
 exposit :: World -> IO ()
 exposit world = do
@@ -121,6 +133,15 @@ gogogo world = do
             putStr "move to? "
             n <- getLine
             gogogo $ execState (eval (Move (Number $ read n))) world
+        "roll"      -> do
+            putStr "roll what? "
+            r <- TIO.getLine
+            let expr   = Roll r
+                e      = eval expr
+                world' = snd $ runState e world
+            --gogogo $ execState (eval (Roll r)) world
+            putStrLn $ show $ runState e world
+            gogogo world'
         _           -> do
             putStrLn "bad input, try again"
             gogogo world
@@ -132,7 +153,7 @@ test = do
                   (Just spawn, _) -> spawn
                   (Nothing, _)  -> ([], 0, ((Description ":(" "It failed."), []), [])
         newPlayer     = Player room (Creature (Description "Player" "The player.") 15 15)
-        world         = World newPlayer aLittleDungeon
+        world         = World newPlayer aLittleDungeon (mkStdGen 42)
     gogogo world
 
 prompt :: String -> IO ()

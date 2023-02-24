@@ -1,3 +1,13 @@
+usage:
+    run it
+    exposit: prints name and description
+    elaborate: either here/from/to/creature/creatures
+        - here: prints amount of creatures, and amounts of entries and exits
+        - from: went from
+        - to: go to
+        - creature: info on specific creature (soon)
+        - creatures: all creatures in area (soon)
+
 done:
     - traversal
 
@@ -9,3 +19,4 @@ todo:
     - loot
     - random generation
     - maps
+
