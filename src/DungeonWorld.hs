@@ -6,7 +6,7 @@ import System.IO
 import Data.Graph.Inductive
 import Control.Monad.State.Strict
 import qualified Dungeon.Dice as D
-import System.Random (StdGen, mkStdGen)
+import System.Random (StdGen, split, getStdGen)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
@@ -39,6 +39,7 @@ data Expression = Number Int
                 deriving Show
 
 data Value = NumberVal  Int
+           | NumbersVal [Int]
            | RollVal    T.Text
            | PlayerVal  Player
            | RoomVal    Room
@@ -77,7 +78,8 @@ eval (Move e)   = do
                                 ++ " in rooms: " ++ show rooms)
 eval (Roll e)   = do
     world <- get
-    return $ NumberVal $ D.roll e (seed world)
+    put $ world { seed = snd $ split (seed world) }
+    return $ NumbersVal $ D.roll e (seed world)
 
 exposit :: World -> IO ()
 exposit world = do
@@ -149,11 +151,12 @@ gogogo world = do
 test :: IO ()
 test = do
     --hSetBuffering stdin NoBuffering
+    sed <- getStdGen
     let room = case match 1 aLittleDungeon of
                   (Just spawn, _) -> spawn
                   (Nothing, _)  -> ([], 0, ((Description ":(" "It failed."), []), [])
         newPlayer     = Player room (Creature (Description "Player" "The player.") 15 15)
-        world         = World newPlayer aLittleDungeon (mkStdGen 42)
+        world         = World newPlayer aLittleDungeon sed
     gogogo world
 
 prompt :: String -> IO ()

@@ -7,11 +7,12 @@ module Dungeon.Dice where
 --
 -- Some functions to simulate rolling dice.
 
-import System.Random (StdGen, uniformR, split)
+import System.Random (StdGen, mkStdGen, uniformR, split)
 import Data.List (unfoldr)
 import Control.Applicative ((<|>), many)
 import Data.Attoparsec.Text (Parser, char, digit, many1, skipSpace, parseOnly)
-import Control.Monad.State.Strict
+import Control.Monad.State.Strict (State, evalState, put, get)
+import qualified Data.Text as T(Text)
 
 
 type M a = State StdGen a
@@ -19,49 +20,85 @@ type M a = State StdGen a
 ss :: Parser ()
 ss = skipSpace
 
-number :: Parser Int
-number = read <$> many1 digit <|> (pure 100 <$> char '%')
+number :: Parser [M Int]
+number = (\x -> pure x : []) <$> read <$> many1 digit <|> (pure [return 100] <$> char '%')
 
-expr :: M (Parser Int)
+expr :: M (Parser [M Int])
 expr = do
     world <- get
-    let dice'      = evalState dice world
-        eval' x xs = evalState (eval x xs) world
-    return $ pure eval' <*> dice' <*> many (pure (,) <*> (ss *> (char '+' <|> char '-') <* ss) <*> dice')
+    let evals' x xs = evalState (evals x xs) world
+        rolls'      = evalState rolls world
+    return $ evals' <$> rolls' <*> many (pure (,) <*> (ss *> (char '+' <|> char '-') <* ss) <*> rolls')
 
-dice :: M (Parser Int)
-dice = do
+rolls :: M (Parser [M Int])
+rolls = do
     world <- get
-    let eval' x xs  = evalState (eval x xs) world
-        factor'     = evalState factor world
-    return $ pure eval' <*> factor' <*> many ((pure (,) <*> (ss *> (char 'd') <* ss) <*> factor'))
+    let evals' x xs = evalState (evals x xs) world
+        exprs'      = evalState exprs world
+    return $ evals' <$> exprs' <*> many ((pure (,) <*> (ss *> (char 'd') <* ss)) <*> exprs')
 
-factor :: M (Parser Int)
+exprs :: M (Parser [M Int])
+exprs = do
+    world <- get
+    let evals' x xs = evalState (evals x xs) world
+        factor'     = evalState factor world
+    return $ evals' <$> factor' <*> many ((pure (,) <*> (ss *> (char '*') <* ss)) <*> factor')
+
+factor :: M (Parser [M Int])
 factor = do
     world <- get
     let expr' = evalState expr world
     return $ number <|> ss *> char '(' *> ss *> expr' <* ss <* char ')' <* ss
 
-eval :: Int -> [(Char,Int)] -> M Int
-eval x [] = return x
-eval x (('+', x'):xs) = do
-    e <- eval (x + x') xs
-    return e
-eval x (('-', x'):xs) = do
-    e <- eval (x - x') xs
-    return e
-eval x (('d', x'):xs) = do
-    world <- get
-    put $ (snd $ split world)
-    e <- eval (fst $ roll' world (x, x')) xs
-    return e
-eval _ _ = error "ok"
+evals :: [M Int] -> [(Char, [M Int])] -> M [M Int]
+evals x [] = return x
+evals x (('+', x'):xs) = evals (map add [ (a, a') | a <- x, a' <- x' ]) xs
+evals x (('-', x'):xs) = evals (map sub [ (a, a') | a <- x, a' <- x' ]) xs
+evals x (('d', x'):xs) = do
+    xs' <- mapM droll [ (a, a') | a <- x, a' <- x' ]
+    evals (fmap pure xs') xs
+evals x (('*', x'):xs) = evals (concat $ map dupe [ (a, a') | a <- x, a' <- x' ]) xs
+evals _ _ = error "wrong operator?"
 
-roll' :: StdGen -> (Int, Int) -> (Int, StdGen)
-roll' s (x, y) = let roll'' = uniformR (1, y)
-                     rolls  = unfoldr (Just . roll'')
-                 in (sum $ take x (rolls s), snd $ split s)
+droll :: (M Int, M Int) -> M Int
+droll (x, y) = do
+    x' <- x
+    y' <- y
+    seed <- get
+    put $ (snd $ split seed)
+    let roll'  = uniformR (1, y')
+        rollin = unfoldr (Just . roll')
+    return $ sum $ take x' (rollin seed)
 
+add :: (M Int, M Int) -> M Int
+add (x, y) = do
+    seed <- get
+    put $ (snd $ split seed)
+    x' <- x
+    y' <- y
+    return $ x' + y'
+
+sub :: (M Int, M Int) -> M Int
+sub (x, y) = do
+    seed <- get
+    put $ (snd $ split seed)
+    x' <- x
+    y' <- y
+    return $ x' - y'
+
+dupe :: (M Int, M Int) -> [M Int]
+dupe (x, y) = do
+    let x' = evalState x (mkStdGen 42)
+    replicate x' y
+
+look :: Either String [M Int] -> String
+look e = case e of
+             (Left l)  -> l
+             (Right r) -> concat $ map no r
+                where no n = show (evalState n (mkStdGen 42))
+
+
+roll :: T.Text -> StdGen -> [Int]
 roll e seed = case parseOnly (evalState expr seed) e of
-           (Left r)  -> 0
-           (Right r) -> r
+                  (Left _)  -> [0]
+                  (Right r) -> map (\x -> evalState x seed) r

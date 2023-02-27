@@ -1,6 +1,6 @@
 module Main where
 
-import DungeonWorld.Dice
+import DungeonWorld
 
 main :: IO ()
 main = test

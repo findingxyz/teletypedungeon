@@ -34,6 +34,7 @@ library
                     text               >= 2.0    && < 2.1
     exposed-modules:
       DungeonWorld
+      Dungeon.Dice
 
 
 executable teletypedungeon
