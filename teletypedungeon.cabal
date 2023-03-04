@@ -35,7 +35,11 @@ library
     exposed-modules:
       DungeonWorld
       Dungeon.Dice
-
+      Dungeon.Evaluator
+      Dungeon.World
+      Dungeon.World.Player
+      Dungeon.World.Description
+      Dungeon.World.Creature
 
 executable teletypedungeon
     import:           common
