@@ -2,102 +2,25 @@
 
 module DungeonWorld where
 
-import System.IO
 import Data.Graph.Inductive
-import Control.Monad.State.Strict
 import System.Random (getStdGen)
-import qualified Data.Text.IO as TIO
 
-import Dungeon.Evaluator
+import Dungeon.Prompt
 import Dungeon.World
 import Dungeon.World.Description
 import Dungeon.World.Creature
 import Dungeon.World.Player
 
 
-
-exposit :: World -> IO ()
-exposit world = do
-    let (_, _, (area, _), _) = pAt $ player world
-    TIO.putStrLn $ dName area
-    TIO.putStrLn $ dDescription area
-    gogogo world
-
-elaborate :: World -> IO ()
-elaborate world = do
-    prompt "elaborate what? (here/from/to/creature/creatures)"
-    hFlush stdout
-    what <- getLine
-    case what of
-        "here"       -> do
-            let (ps, _, area, ss) = pAt $ player world
-            putStrLn $ "contains " ++ (show $ length $ snd area) ++ " creatures"
-            putStrLn $ "from "
-                    ++ (show $ length ps)
-                    ++ " rooms. goes to "
-                    ++ (show $ length ss)
-                    ++ " rooms."
-        "from"       -> do
-            putStr "this room came from one of "
-            let (from, _, _, _) = pAt $ player world
-            putStrLn $ show $ map snd from
-        "to"         -> do
-            putStr "this room can go to one of "
-            let (_, _, _, to) = pAt $ player world
-            putStrLn $ show $ map snd to
-        "creature"   -> do
-            putStrLn "ok"
-        "creatures"  -> do
-            let (_, _, area, _) = pAt $ player world
-            mapM_ (putStrLn . show) $ snd area
-        _            -> do
-            putStrLn "bad input, try again"
-            elaborate world
-
-gogogo :: World -> IO ()
-gogogo world = do
-    prompt "command (exposit/elaborate/move)?"
-    hFlush stdout
-    input <- getLine
-    case input of 
-        "exposit"   -> do
-            exposit world
-            gogogo world
-        "elaborate" -> do
-            elaborate world
-            gogogo world
-        "move"      -> do
-            putStr "move to? "
-            n <- getLine
-            gogogo $ execState (eval (Move (Number $ read n))) world
-        "roll"      -> do
-            putStr "roll what? "
-            r <- TIO.getLine
-            let expr   = Roll r
-                e      = eval expr
-                world' = snd $ runState e world
-            --gogogo $ execState (eval (Roll r)) world
-            putStrLn $ show $ runState e world
-            gogogo world'
-        _           -> do
-            putStrLn "bad input, try again"
-            gogogo world
-
 test :: IO ()
 test = do
-    --hSetBuffering stdin NoBuffering
     sed <- getStdGen
     let room = case match 1 aLittleDungeon of
                   (Just spawn, _) -> spawn
                   (Nothing, _)  -> ([], 0, ((Description ":(" "It failed."), []), [])
         newPlayer     = Player room (Creature (Description "Player" "The player.") 15 15)
         world         = World newPlayer aLittleDungeon sed
-    gogogo world
-
-prompt :: String -> IO ()
-prompt p = do
-    putStrLn $ "┌─ " ++ p
-    putStr   "└─› "
+    prompt world
 
 aLittleDungeon :: Dungeon
 aLittleDungeon = let gobbo    = Creature (Description "Goblin" "Small and green.") 6 6

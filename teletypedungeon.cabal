@@ -35,6 +35,8 @@ library
     exposed-modules:
       DungeonWorld
       Dungeon.Dice
+      Dungeon.Prompt
+      Dungeon.Commands
       Dungeon.Evaluator
       Dungeon.World
       Dungeon.World.Player

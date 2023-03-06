@@ -2,7 +2,6 @@
 
 module Dungeon.World where
 
-
 import Data.Graph.Inductive
 import System.Random (StdGen)
 

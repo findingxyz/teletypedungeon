@@ -9,7 +9,6 @@ import System.Random (split)
 import qualified Data.Text as T
 
 import Dungeon.World
-import Dungeon.World.Creature
 import Dungeon.World.Player
 
 
@@ -20,17 +19,15 @@ data Expression = Number Int
 
 data Value = NumberVal  Int
            | NumbersVal [Int]
-           | RollVal    T.Text
            | PlayerVal  Player
            | RoomVal    Room
            | DungeonVal Dungeon
            | FailVal    String
            deriving Show
 
-type M a     = State World a
+--type M a     = State World a
 
-
-eval :: Expression -> M Value
+eval :: Expression -> State World Value
 eval (Number n) = return $ NumberVal n
 eval (Move e)   = do
     evaled <- eval e

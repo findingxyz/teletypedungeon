@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Dungeon.Dice where
+module Dungeon.Dice
+    ( roll
+    )
+    where
 
 -- |
 -- Module: Dungeon.Dice
@@ -9,8 +12,8 @@ module Dungeon.Dice where
 
 import System.Random (StdGen, mkStdGen, uniformR, split)
 import Data.List (unfoldr)
-import Control.Applicative ((<|>), many)
-import Data.Attoparsec.Text (Parser, char, digit, many1, skipSpace, parseOnly)
+import Control.Applicative ((<|>), many, optional)
+import Data.Attoparsec.Text (Parser, char, decimal, skipSpace, parseOnly)
 import Control.Monad.State.Strict (State, evalState, put, get)
 import qualified Data.Text as T(Text)
 
@@ -21,7 +24,7 @@ ss :: Parser ()
 ss = skipSpace
 
 number :: Parser [M Int]
-number = (\x -> pure x : []) <$> read <$> many1 digit <|> (pure [return 100] <$> char '%')
+number = (\x -> pure x : []) <$> decimal <|> (pure [return 100] <$> char '%')
 
 expr :: M (Parser [M Int])
 expr = do
@@ -48,7 +51,10 @@ factor :: M (Parser [M Int])
 factor = do
     world <- get
     let expr' = evalState expr world
-    return $ number <|> ss *> char '(' *> ss *> expr' <* ss <* char ')' <* ss
+    return $ (pure f <*> optional (char 'd') <*> number) <|> (ss *> char '(' *> ss *> expr' <* ss <* char ')' <* ss)
+        where f Nothing x = x
+              --f _       x = evalState (evals [pure 1] [('d', x)]) world
+              f _       x = evalState (evals [pure 1] [('d', x)]) (mkStdGen 1)
 
 evals :: [M Int] -> [(Char, [M Int])] -> M [M Int]
 evals x [] = return x
@@ -57,7 +63,8 @@ evals x (('-', x'):xs) = evals (map sub [ (a, a') | a <- x, a' <- x' ]) xs
 evals x (('d', x'):xs) = do
     xs' <- mapM droll [ (a, a') | a <- x, a' <- x' ]
     evals (fmap pure xs') xs
-evals x (('*', x'):xs) = evals (concat $ map dupe [ (a, a') | a <- x, a' <- x' ]) xs
+evals x (('*', x'):xs) = do
+    evals (concat $ map dupe [ (a, a') | a <- x, a' <- x' ]) xs
 evals _ _ = error "wrong operator?"
 
 droll :: (M Int, M Int) -> M Int
@@ -90,12 +97,6 @@ dupe :: (M Int, M Int) -> [M Int]
 dupe (x, y) = do
     let x' = evalState x (mkStdGen 42)
     replicate x' y
-
-look :: Either String [M Int] -> String
-look e = case e of
-             (Left l)  -> l
-             (Right r) -> concat $ map no r
-                where no n = show (evalState n (mkStdGen 42))
 
 
 roll :: T.Text -> StdGen -> [Int]
